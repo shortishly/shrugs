@@ -1,6 +1,6 @@
 # Secure sHell Remote User Git Server (shrugs)
 
-A git server that you can push, clone or pull over ssh... ¯\\_(ツ)_/¯
+A git server that you can push, clone or pull over ssh... ¯\\\_(ツ)\_/¯
 
 You can run a docker container with:
 
