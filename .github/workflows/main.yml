@@ -16,15 +16,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: setup beam
+        uses: actions/checkout@v3
+      - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{env.OTP_VERSION}}
-        uses: erlef/setup-beam@v1
       - name: Build
-        run: make
+        run: make deps app dialyze tests
       - name: Beam Docker Release
-        id: bdr
         uses: shortishly/beam-docker-release-action@main
         with:
           registry: ${{env.REGISTRY}}
