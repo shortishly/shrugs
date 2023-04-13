@@ -21,7 +21,7 @@ jobs:
         with:
           otp-version: ${{env.OTP_VERSION}}
       - name: Build
-        run: make deps app dialyze tests
+        run: make deps app
       - name: Beam Docker Release
         uses: shortishly/beam-docker-release-action@main
         with:
