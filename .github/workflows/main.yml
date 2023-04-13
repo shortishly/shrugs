@@ -21,7 +21,7 @@ jobs:
         with:
           otp-version: ${{env.OTP_VERSION}}
       - name: Build
-        run: make distclean deps app
+        run: make distclean all
       - name: Beam Docker Release
         uses: shortishly/beam-docker-release-action@main
         with:
@@ -29,6 +29,7 @@ jobs:
           username: ${{github.actor}}
           password: ${{secrets.GITHUB_TOKEN}}
           build-image: erlang:${{env.OTP_VERSION}}
+          build-command: make distclean all
           image-description: >-
             shrugs is a git server that you can push, clone or pull
             over ssh... ¯\_(ツ)_/¯
