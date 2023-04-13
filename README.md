@@ -1,6 +1,6 @@
 # Secure sHell Remote User Git Server (shrugs)
 
-A git server that you can push, clone or pull over ssh... ¯\_(ツ)_/¯
+A git server that you can push, clone or pull over ssh... ¯\\_(ツ)_/¯
 
 You can run a docker container with:
 
@@ -68,6 +68,7 @@ To list (ls) the repositories stored in shrugs:
 ```shell
 $ ssh -p 22022 localhost ls
 demo
+```
 
 A little simpler with a host entry for shrugs in your `.ssh/config`:
 
