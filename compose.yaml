@@ -1,0 +1,18 @@
+---
+services:
+  shrugs:
+    image:
+      ${SHRUGS_IMAGE:-shrugs:${SHRUGS_VERSION:-latest}}
+    ports:
+      - 22022:22
+    volumes:
+      - repos:/repos
+      - host_keys:/etc/ssh
+      - user_keys:/users
+volumes:
+  repos:
+    driver: local
+  host_keys:
+    driver: local
+  user_keys:
+    driver: local

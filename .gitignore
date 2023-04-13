@@ -5,6 +5,7 @@
 .#*
 .*DS_Store
 .DS_Store
+.cache
 .erlang.mk
 .erlang.mk.*
 .eunit
@@ -12,6 +13,7 @@
 /*.d
 /beam-docker-release-action
 /makefile.bak
+_image
 _rel
 cover
 db
@@ -26,4 +28,5 @@ node_modules
 package-lock.json
 package.json
 relx
+test/*.beam
 xrefr

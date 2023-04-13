@@ -27,21 +27,37 @@
 
 init(Arg) ->
     ?LOG_DEBUG(#{arg => Arg}),
-    {ok, #{arg => Arg, channels => #{}, env => #{}, ports => #{}}}.
+    {ok,
+     #{arg => Arg,
+       channels => #{},
+       envs => #{},
+       pids => #{}}}.
 
 
 handle_msg({ssh_channel_up, _Channel, _Connection} = Msg, State) ->
     ?LOG_DEBUG(#{msg => Msg, state => State}),
     {ok, State};
 
-handle_msg({'EXIT', Port, normal} = Msg, State) when is_port(Port) ->
+handle_msg({'DOWN', Pid, process, _, Reason} = Msg,
+           #{channels := Channels, envs := Envs, pids := Pids} = State)
+  when is_map_key(Pid, Pids) ->
     ?LOG_DEBUG(#{msg => Msg, state => State}),
-    {ok, State};
+    #{Pid := {Connection, Channel} = CoCh} = Pids,
+    ssh_connection:exit_status(
+      Connection,
+      Channel,
+      status(Reason)),
+    _ = ssh_connection:send_eof(Connection, Channel),
+    {stop,
+     Channel,
+     State#{channels := maps:remove(CoCh, Channels),
+            envs := maps:remove(CoCh, Envs),
+            pids := maps:remove(Pid, Pids)}};
 
-handle_msg({Port, {data, Data}}, #{ports := Ports} = State)
-  when is_port(Port), is_map_key(Port, Ports) ->
-    ?LOG_DEBUG(#{port => Port, data => Data}),
-    #{Port := {Connection, Channel}} = Ports,
+handle_msg({stdout = FD, Pid, Data}, #{pids := Pids} = State)
+  when is_map_key(Pid, Pids) ->
+    ?LOG_DEBUG(#{fd => FD, pid => Pid, data => Data}),
+    #{Pid := {Connection, Channel}} = Pids,
     case ssh_connection:send(Connection,
                              Channel,
                              0,
@@ -52,31 +68,17 @@ handle_msg({Port, {data, Data}}, #{ports := Ports} = State)
         {error, Reason} ->
             ?LOG_DEBUG(#{reason => Reason}),
             {ok, State}
-    end;
-
-handle_msg({Port, {exit_status, ExitStatus}} = Msg,
-           #{ports := Ports, env := Env, channels := Channels} = State)
-  when is_port(Port), is_map_key(Port, Ports) ->
-    ?LOG_DEBUG(#{msg => Msg, state => State}),
-    #{Port := {Connection, Channel} = CoCh} = Ports,
-    ssh_connection:exit_status(Connection, Channel, ExitStatus),
-    {stop,
-     Channel,
-     State#{channels := maps:remove(CoCh, Channels),
-            env := maps:remove(CoCh, Env),
-            ports := maps:remove(Port, Ports)}};
-
-handle_msg({Port, {exit_status, _}} = Msg, State) when is_port(Port) ->
-    ?LOG_DEBUG(#{msg => Msg, state => State}),
-    {ok, State};
-
-handle_msg(Msg, State) ->
-    ?LOG_DEBUG(#{msg => Msg, state => State}),
-    {ok, State}.
+    end.
 
 
-handle_ssh_msg({ssh_cm, Connection, {eof, _} = CM}, State) ->
-    ?LOG_DEBUG(#{cm => CM, connection => Connection, state => State}),
+handle_ssh_msg({ssh_cm, Connection, {eof, Channel} = CM},
+               #{channels := Channels} = State)
+  when is_map_key({Connection, Channel}, Channels) ->
+    ?LOG_DEBUG(#{cm => CM,
+                 connection => Connection,
+                 state => State}),
+    #{{Connection, Channel} := {_, Pid}} = Channels,
+    exec:send(Pid, eof),
     {ok, State};
 
 handle_ssh_msg({ssh_cm,
@@ -87,16 +89,17 @@ handle_ssh_msg({ssh_cm,
     ?LOG_DEBUG(#{cm => CM,
                  connection => Connection,
                  state => State}),
-    #{{Connection, Channel} := Port} = Channels,
-    erlang:port_command(Port, Data),
+    #{{Connection, Channel} := {_, Pid}} = Channels,
+    exec:send(Pid, Data),
     {ok, State};
 
 handle_ssh_msg(
   {ssh_cm,
    Connection,
    {exec, Channel, WantReply, Command} = CM},
-  #{channels := Channels, ports := Ports, env := Env} = State)
-  when not(is_map_key({Connection, Channel}, Channels)) ->
+  #{channels := Channels, pids := Pids, envs := Envs} = State)
+  when is_map_key({Connection, Channel}, Envs),
+       not(is_map_key({Connection, Channel}, Channels)) ->
 
     ?LOG_DEBUG(#{cm => CM,
                  connection => Connection,
@@ -107,33 +110,54 @@ handle_ssh_msg(
                                       Executable == "git-upload-archive";
                                       Executable == "git-upload-pack" ->
 
-            try
-                Port = erlang:open_port(
-                         {spawn_executable, "/usr/bin/git"},
-                         [stream,
-                          {cd, "repos"},
-                          {env,
-                           maps:to_list(maps:get({Connection, Channel}, Env, #{}))},
-                          {arg0, Executable},
-                          {args, [unquote(QuotedRepo)]},
-                          exit_status,
-                          eof,
-                          use_stdio,
-                          binary]),
 
-                ssh_connection:reply_request(Connection, WantReply, success, Channel),
-                CoCh = {Connection, Channel},
-                {ok,
-                 State#{ports := Ports#{Port => CoCh},
-                        channels := Channels#{CoCh => Port}}}
-            catch
-                Class:Exception:Stacktrace ->
-                    ?LOG_ERROR(#{class => Class, error => Exception, stacktrace => Stacktrace}),
+            ok = prepare_repo_dir(Executable, unquote(QuotedRepo)),
+
+            case exec:run(
+                   [Executable] ++ [unquote(QuotedRepo)],
+                   [{executable, filename:join(shrugs_config:dir(bin), "git")},
+                    monitor,
+                    stdin,
+                    stdout,
+                    stderr,
+                    {cd, shrugs_config:dir(repo)},
+                    {env, maps:get({Connection, Channel}, Envs)}]) of
+
+                {ok, Pid, OSPid} ->
+                    ssh_connection:reply_request(
+                      Connection,
+                      WantReply,
+                      success,
+                      Channel),
+                    CoCh = {Connection, Channel},
+                    {ok,
+                     State#{pids := Pids#{OSPid => CoCh},
+                            channels := Channels#{CoCh => {Pid, OSPid}}}};
+
+                {error, Reason} ->
+                    ?LOG_ERROR(#{reason => Reason}),
                     ssh_connection:reply_request(Connection, WantReply, failure, Channel),
                     ssh_connection:exit_status(Connection, Channel, ?EXEC_ERROR_STATUS),
                     _ = ssh_connection:send_eof(Connection, Channel),
                     {stop, Channel, State}
             end;
+
+        ["ls"] ->
+            case file:list_dir(shrugs_config:dir(repo)) of
+                {ok, Repositories} ->
+                    ssh_connection:reply_request(Connection, WantReply, success, Channel),
+                    _ = ssh_connection:send(Connection,
+                                            Channel,
+                                            0,
+                                            [lists:join("\n", Repositories), "\n"]),
+                    ssh_connection:exit_status(Connection, Channel, 0),
+                    ssh_connection:send_eof(Connection, Channel);
+
+                {error, Reason} ->
+                    ?LOG_DEBUG(#{reason => Reason})
+            end,
+            {stop, Channel, State};
+
 
         _Otherwise ->
             case ssh_connection:send(Connection,
@@ -155,19 +179,27 @@ handle_ssh_msg({ssh_cm, Connection, {shell, Channel, WantReply} = CM}, State) ->
     ?LOG_DEBUG(#{cm => CM,
                  connection => Connection,
                  state => State}),
-    case ssh_connection:send(Connection,
-                             Channel,
-                             1,
-                             "Denied.") of
-        ok ->
-            ssh_connection:reply_request(Connection, WantReply, success, Channel),
-            ssh_connection:exit_status(Connection, Channel, ?EXEC_ERROR_STATUS),
-            ssh_connection:send_eof(Connection, Channel);
+    case shrugs_config:enabled(shell) of
+        false ->
+            case ssh_connection:send(Connection,
+                                     Channel,
+                                     1,
+                                     "Denied.") of
+                ok ->
+                    ssh_connection:reply_request(Connection, WantReply, success, Channel),
+                    ssh_connection:exit_status(Connection, Channel, ?EXEC_ERROR_STATUS),
+                    ssh_connection:send_eof(Connection, Channel);
+                
+                {error, Reason} ->
+                    ?LOG_DEBUG(#{reason => Reason})
+            end,
+            {stop, Channel, State};
 
-        {error, Reason} ->
-            ?LOG_DEBUG(#{reason => Reason})
-    end,
-    {stop, Channel, State};
+        true ->
+            ssh_connection:reply_request(Connection, WantReply, success, Channel),
+            shell:start(),
+            {ok, State}
+    end;
 
 
 handle_ssh_msg(
@@ -177,12 +209,7 @@ handle_ssh_msg(
                  connection => Connection,
                  state => State}),
     ssh_connection:reply_request(Connection, WantReply, success, Channel),
-
-    {ok,
-     add_env({Connection, Channel},
-             binary_to_list(Key),
-             binary_to_list(Value),
-             State)};
+    {ok, add_env({Connection, Channel}, Key, Value, State)};
 
 handle_ssh_msg({ssh_cm, Connection, {pty, Channel, WantReply, _} = CM}, State) ->
     ?LOG_DEBUG(#{cm => CM,
@@ -205,19 +232,59 @@ unquote(Quoted) ->
     ?LOG_DEBUG(#{quoted => Quoted}),
     case string:trim(Quoted, both, "'") of
         [$/ | Unquoted] ->
+            ?LOG_DEBUG(#{unquoted => Unquoted}),
             Unquoted;
 
         Unquoted ->
+            ?LOG_DEBUG(#{unquoted => Unquoted}),
             Unquoted
     end.
 
 
-add_env(CoCh, Key, Value, #{env := Env} = State) ->
+add_env(CoCh, Key, Value, #{envs := Envs} = State) ->
     ?LOG_DEBUG(#{co_ch => CoCh, key => Key, value => Value, state => State}),
-    case Env of
+    case Envs of
         #{CoCh := Existing} ->
-            State#{env := Env#{CoCh := Existing#{Key => Value}}};
+            State#{envs := Envs#{CoCh := [{Key, Value} | Existing]}};
 
         #{} ->
-            State#{env := Env#{CoCh => #{Key => Value}}}
+            State#{envs := Envs#{CoCh => [{Key, Value}]}}
     end.
+
+
+prepare_repo_dir("git-receive-pack", Repo) ->
+    ?LOG_DEBUG(#{repo => Repo}),
+    RepoDir = filename:join(shrugs_config:dir(repo), Repo),
+
+    case filelib:is_dir(RepoDir) of
+        false ->
+            ok = filelib:ensure_dir(RepoDir),
+
+            case shrugs_git:command(
+                   ["init",
+                    "--bare",
+                    Repo]) of
+
+                {ok, Detail} ->
+                    ?LOG_DEBUG(#{detail => Detail}),
+                    ok;
+
+                {error, Detail} = Error ->
+                    ?LOG_DEBUG(#{detail => Detail}),
+                    Error
+            end;
+                
+        true ->
+            ok
+    end;
+
+prepare_repo_dir(_, _) ->
+    ok.
+
+
+
+status(normal) ->
+    0;
+
+status({status, Status}) ->
+    exec:status(Status).

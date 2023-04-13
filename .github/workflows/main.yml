@@ -1,0 +1,35 @@
+---
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+env:
+  OTP_VERSION: '25.2'
+  REGISTRY: 'ghcr.io'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: setup beam
+        with:
+          otp-version: ${{env.OTP_VERSION}}
+        uses: erlef/setup-beam@v1
+      - name: Build
+        run: make
+      - name: Beam Docker Release
+        id: bdr
+        uses: shortishly/beam-docker-release-action@main
+        with:
+          registry: ${{env.REGISTRY}}
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
+          build-image: erlang:${{env.OTP_VERSION}}
+          image-description: >-
+            shrugs is a git server that you can push, clone or pull
+            over ssh... ¯\_(ツ)_/¯
+          image-licenses: Apache-2.0

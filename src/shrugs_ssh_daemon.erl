@@ -16,8 +16,10 @@
 -module(shrugs_ssh_daemon).
 
 
+-behaviour(gen_statem).
 -export([callback_mode/0]).
 -export([handle_event/4]).
+-export([info/0]).
 -export([init/1]).
 -export([start_link/0]).
 -import(shrugs_statem, [nei/1]).
@@ -25,7 +27,15 @@
 
 
 start_link() ->
-    gen_statem:start_link(?MODULE, [], []).
+    gen_statem:start_link(
+      {local, ?MODULE},
+      ?MODULE,
+      [],
+      envy_gen:options(?MODULE)).
+
+
+info() ->
+    gen_statem:call(?MODULE, ?FUNCTION_NAME).
 
 
 init([]) ->
@@ -36,17 +46,29 @@ callback_mode() ->
     handle_event_function.
 
 
+handle_event({call, From}, info, _, #{daemon := Daemon}) ->
+    {keep_state_and_data,
+     {reply,
+      From,
+      case ssh:daemon_info(Daemon) of
+          {ok, Info} ->
+              maps:from_list(Info);
+
+          {error, _} = Error ->
+              Error
+      end}};
+
 handle_event(internal, start_daemon, _, Data) ->
     {_, KeyStore, worker, _} = shrugs_sup:get_child(shrugs_key_store),
     case ssh:daemon(
            shrugs_config:port(sshd),
            [{inet, inet},
             {subsystems, []},
-            {ssh_cli, {shrugs_cli, [abc, def]}},
+            {ssh_cli, {shrugs_cli, []}},
             {shell, fun shell/2},
             {exec, {direct, fun exec/3}},
-            {pwdfun, shrugs_key_store:pwd(KeyStore)},
-            {auth_methods, "publickey,password"},
+            {pwdfun, fun shrugs_key_store:pwd/2},
+            {auth_methods, "publickey"},
             {key_cb, {shrugs_key_store, [KeyStore]}}]) of
 
         {ok, Daemon} ->

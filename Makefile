@@ -19,7 +19,8 @@ PROJECT_DESCRIPTION = Secure sHell Remote User Git Server
 PROJECT_VERSION = 0.1.0
 
 DEPS = \
-	envy
+	envy \
+	exec
 
 RELX_TAR = 0
 
@@ -28,7 +29,9 @@ LOCAL_DEPS = \
 	sasl \
 	ssh
 
+
 dep_envy = git https://github.com/shortishly/envy.git
+
 dep_envy_commit = 0.7.2
 
 

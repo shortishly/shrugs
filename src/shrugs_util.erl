@@ -1,4 +1,3 @@
-%% -*- mode: erlang -*-
 %% Copyright (c) 2023 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,16 +12,12 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-{dev_mode, false}.
-{extended_start_script, true}.
-{include_erts, true}.
-{include_src, false}.
-{release, {shrugs, "1"}, [shrugs, sasl, runtime_tools]}.
-{sys_config, "config/sys.config"}.
-{vm_args, "config/vm.args"}.
-{overlay, [{mkdir, "etc/ssh"},
-           {mkdir, "users"},
-           {mkdir, "repos"},
-           {copy, "LICENSE", "LICENSE"},
-           {copy, "NOTICE", "NOTICE"},
-           {copy, "/usr/bin/git", "bin/git"}]}.
+
+-module(shrugs_util).
+
+
+-export([snake_case/1]).
+
+
+snake_case([_ | _] = Labels) ->
+    list_to_atom(lists:concat(lists:join("_", Labels))).

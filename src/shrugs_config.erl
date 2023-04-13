@@ -17,62 +17,84 @@
 
 
 -export([authorized_keys/0]).
+-export([dir/1]).
 -export([enabled/1]).
--export([password/0]).
+-export([generate_key/1]).
 -export([port/1]).
--export([system_dir/0]).
--export([user_dir/0]).
+-export([timeout/1]).
+-import(envy, [envy/1]).
 -include_lib("kernel/include/logger.hrl").
 
 
-port(sshd) ->
-    envy(to_integer, port, 22).
+port(sshd = Name) ->
+    envy(#{caller => ?MODULE,
+           names => [Name, ?FUNCTION_NAME],
+           default => 22}).
 
 
-enabled(sshd) ->
-    envy(to_boolean, enabled, true).
+enabled(Name) ->
+    envy(#{caller => ?MODULE,
+           names => [Name, ?FUNCTION_NAME],
+           default => true}).
 
 
-system_dir() ->
-    envy(to_list, system_dir, "/etc/ssh").
+dir(system = Name) ->
+    envy(#{caller => ?MODULE,
+           names => [Name, ?FUNCTION_NAME],
+           default => "/etc/ssh"});
+
+dir(repo = Name) ->
+    envy(#{caller => ?MODULE,
+           names => [Name, ?FUNCTION_NAME],
+           default => "/repos"});
+
+dir(bin = Name) ->
+    envy(#{caller => ?MODULE,
+           names => [Name, ?FUNCTION_NAME],
+           default => "/bin"});
+
+dir(user = Name) ->
+    ?LOG_DEBUG(#{name => Name, home => os:getenv("HOME")}),
+    envy(#{caller => ?MODULE,
+           names => [Name, ?FUNCTION_NAME],
+           default => case os:getenv("HOME") of
+                          Home when Home == false; Home == "/"  ->
+                              "/users";
+
+                          Home ->
+                              filename:join(Home, ".ssh")
+                      end}).
 
 
-user_dir() ->
-    case os:getenv("HOME") of
-        false ->
-            envy(to_list, user_dir, shrugs:priv_file("ssh/user"));
+timeout(watch = Name) ->
+    envy(#{caller => ?MODULE,
+           type => integer_or_atom,
+           names => [Name, timeout],
+           default => timer:seconds(5)});
 
-        Home ->
-            envy(to_list, user_dir, filename:join(Home, ".ssh"))
-    end.
+timeout(Name) ->
+    envy(#{caller => ?MODULE,
+           type => integer_or_atom,
+           names => [Name, timeout],
+           default => infinity}).
 
 
 authorized_keys() ->
-    envy:get_env(shrugs, authorized_keys, [os_env]).
+    envy(#{caller => ?MODULE,
+           type => binary,
+           names => [?FUNCTION_NAME]}).
 
 
-password() ->
-    case secret("com.github.shortishly.shrugs.password") of
-        {ok, Password} ->
-            envy(to_list, password, Password);
+generate_key(param = Name) ->
+    {ok, Application} = application:get_application(),
 
-        {error, _} ->
-            envy:get_env(shrugs, password, [os_env])
+    case application:get_env(
+           Application,
+           shrugs_util:snake_case([?FUNCTION_NAME, Name])) of
+
+        undefined ->
+            [{namedCurve, ed25519}];
+
+        {ok, Value} ->
+            Value
     end.
-
-
-secret(Name) ->
-    case file:read_file(filename:join("/run/secrets/", Name)) of
-        {error, _} = Error ->
-            Error;
-
-        {ok, Contents} ->
-            {ok, binary_to_list(Contents)}
-    end.
-
-
-envy(To, Name, Default) ->
-    envy:To(shrugs, Name, default(Default)).
-
-default(Default) ->
-    [os_env, app_env, {default, Default}].

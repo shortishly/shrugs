@@ -1,4 +1,3 @@
-%% -*- mode: erlang -*-
 %% Copyright (c) 2023 Peter Morgan <peter.james.morgan@gmail.com>
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,16 +12,21 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-{dev_mode, false}.
-{extended_start_script, true}.
-{include_erts, true}.
-{include_src, false}.
-{release, {shrugs, "1"}, [shrugs, sasl, runtime_tools]}.
-{sys_config, "config/sys.config"}.
-{vm_args, "config/vm.args"}.
-{overlay, [{mkdir, "etc/ssh"},
-           {mkdir, "users"},
-           {mkdir, "repos"},
-           {copy, "LICENSE", "LICENSE"},
-           {copy, "NOTICE", "NOTICE"},
-           {copy, "/usr/bin/git", "bin/git"}]}.
+
+-module(common).
+
+
+-export([all/1]).
+-include_lib("common_test/include/ct.hrl").
+
+
+is_a_test(is_a_test) ->
+    false;
+is_a_test(Function) ->
+    hd(lists:reverse(string:tokens(atom_to_list(Function), "_"))) =:= "test".
+
+
+all(Module) ->
+    [Function || {Function, Arity} <- Module:module_info(exports),
+                 Arity =:= 1,
+                 is_a_test(Function)].

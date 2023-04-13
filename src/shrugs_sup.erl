@@ -38,7 +38,10 @@ init([]) ->
 
 
 children() ->
-    [worker(shrugs_key_store), worker(shrugs_ssh_daemon)].
+    [worker(shrugs_git),
+     worker(shrugs_key_store),
+     worker(#{m => shrugs_users, restart => transient}),
+     worker(shrugs_ssh_daemon)].
 
 
 worker(Arg) ->

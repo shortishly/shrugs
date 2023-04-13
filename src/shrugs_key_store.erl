@@ -16,12 +16,13 @@
 -module(shrugs_key_store).
 
 
+-behaviour(gen_statem).
 -export([callback_mode/0]).
 -export([handle_event/4]).
 -export([host_key/2]).
 -export([init/1]).
 -export([is_auth_key/3]).
--export([pwd/1]).
+-export([pwd/2]).
 -export([start_link/0]).
 -import(shrugs_statem, [nei/1]).
 -include_lib("kernel/include/logger.hrl").
@@ -29,14 +30,15 @@
 
 
 start_link() ->
-    gen_statem:start_link(?MODULE, [], [{debug, [{log, 10}]}]).
+    gen_statem:start_link(
+      {local, ?MODULE},
+      ?MODULE,
+      [],
+      envy_gen:options(?MODULE)).
 
 
 init([]) ->
-    {ok,
-     ready,
-     #{key_store => ets:new(?MODULE, [private])},
-     [nei(host_keys), nei(auth_keys)]}.
+    {ok, ready, #{key_store => ets:new(?MODULE, [private])}, nei(host_keys)}.
 
 
 callback_mode() ->
@@ -46,37 +48,9 @@ handle_event(internal, host_keys, _, #{key_store := KeyStore}) ->
     true = ets:insert_new(KeyStore, host_keys()),
     keep_state_and_data;
 
-handle_event(internal, auth_keys, _, #{key_store := KeyStore}) ->
-    try
-        true = ets:insert_new(
-                 KeyStore,
-                 case authorized_keys() of
-                     undefined ->
-                         [];
-
-                     EncodedKeys ->
-                         case ssh_file:decode(EncodedKeys, auth_keys) of
-                             {error, Reason} ->
-                                 ?LOG_WARNING(
-                                    #{encoded_keys => EncodedKeys,
-                                      reason => Reason}),
-                                [];
-
-                             Decoded ->
-                                 lists:map(
-                                   fun
-                                       ({AuthKey, Comment}) ->
-                                           ?LOG_DEBUG(#{auth_key => AuthKey}),
-                                           {{auth_key, AuthKey}, Comment}
-                                   end,
-                                   Decoded)
-                         end
-                 end)
-    catch
-        error:badarg ->
-            ok
-    end,
-    keep_state_and_data;
+handle_event({call, From}, {add_auth_key, AuthKey, Comment}, _, #{key_store := KeyStore}) ->
+    ets:insert(KeyStore, {{auth_key, AuthKey}, Comment}),
+    {keep_state_and_data, {reply, From, ok}};
 
 handle_event({call, From},
              {host_key, KeyType},
@@ -96,12 +70,21 @@ handle_event({call, From},
               {ok, PrivateKey}
       end}};
 
+handle_event({call, From}, {pwd, User, Password}, _, #{key_store := KeyStore}) ->
+    {keep_state_and_data, {reply, From, ets:member(KeyStore, {auth, User, Password})}};
+
 handle_event({call, From},
              {is_auth_key, Key, _},
              _,
              #{key_store := KeyStore}) ->
-    {keep_state_and_data,
-     {reply, From, ets:lookup(KeyStore, {auth_key, Key}) /= []}}.
+    case shrugs_config:enabled(authentication) of
+        true ->
+            {keep_state_and_data,
+             {reply, From, ets:member(KeyStore, {auth_key, Key})}};
+
+        false ->
+            {keep_state_and_data, {reply, From, true}}
+    end.
 
 
 key_type(private, #'RSAPrivateKey'{}) ->
@@ -132,41 +115,56 @@ key_type(KeyType) ->
     KeyType.
 
 
-host_key(Algorithm, DaemonOptions) ->
-    gen_statem:call(server(DaemonOptions), {?FUNCTION_NAME, Algorithm}).
+host_key(Algorithm, _DaemonOptions) ->
+    gen_statem:call(?MODULE, {?FUNCTION_NAME, Algorithm}).
 
 
-is_auth_key(PublicUserKey, User, DaemonOptions) ->
-    gen_statem:call(server(DaemonOptions), {?FUNCTION_NAME, PublicUserKey, User}).
+is_auth_key(PublicUserKey, User, _DaemonOptions) ->
+    gen_statem:call(?MODULE, {?FUNCTION_NAME, PublicUserKey, User}).
 
 
-server(DaemonOptions) ->
-    [Server] = proplists:get_value(key_cb_private, DaemonOptions),
-    Server.
-
-
-pwd(KeyStore) ->
-    fun
-        (User, Password) ->
-            gen_statem:call(KeyStore, {?FUNCTION_NAME, User, Password})
-    end.
+pwd(User, Password) ->
+    gen_statem:call(?MODULE, {?FUNCTION_NAME, User, Password}).
 
 
 host_keys() ->
     case system_host_keys() of
         [] ->
-            lists:map(
-              fun
-                  (Param) ->
-                      PrivateKey = public_key:generate_key(Param),
-                      KeyType = key_type(private, PrivateKey),
-                      ?LOG_DEBUG(#{param => Param,
-                                   key_type => KeyType}),
-                      {{host_key, KeyType}, PrivateKey}
-              end,
-              [{namedCurve, ed25519},
-               {namedCurve, ed448},
-               {rsa, 4096, 65537}]);
+            case file:consult(
+                  filename:join(
+                    shrugs_config:dir(system),
+                    "shrugs_host_keys.terms")) of
+
+                {ok, HostKeys} ->
+                    HostKeys;
+
+                {error, _} ->
+                    HostKeys = lists:map(
+                                 fun
+                                     (Param) ->
+                                         PrivateKey = public_key:generate_key(Param),
+                                         ?LOG_DEBUG(#{private_key => PrivateKey}),
+
+                                         KeyType = key_type(private, PrivateKey),
+                                         ?LOG_DEBUG(#{param => Param, key_type => KeyType}), 
+                                         {{host_key, KeyType}, PrivateKey}
+                                 end,
+                                 shrugs_config:generate_key(param)),
+
+                    _ = file:write_file(
+                          filename:join(
+                            shrugs_config:dir(system),
+                            "shrugs_host_keys.terms"),
+                          [io_lib:fwrite("%% -*- mode: erlang -*-~n", []),
+                           lists:map(
+                             fun
+                                 (Row) ->
+                                     io_lib:fwrite("~p.~n", [Row])
+                             end,
+                             HostKeys)]),
+                    HostKeys
+            end;
+
         HostKeys ->
             HostKeys
     end.
@@ -188,6 +186,8 @@ system_host_keys() ->
       lists:flatmap(
         fun
             (Filename) ->
+                ?LOG_DEBUG(#{filename => Filename}),
+
                 case file:read_file(Filename) of
                     {ok, HostKey} ->
                         case ssh_file:decode(
@@ -211,28 +211,5 @@ system_host_keys() ->
         end,
         filelib:wildcard(
           filename:join(
-            shrugs_config:system_dir(),
+            shrugs_config:dir(system),
             "ssh_host_*_key")))).
-
-
-authorized_keys() ->
-    case shrugs_config:authorized_keys() of
-        undefined ->
-            case file:read_file(
-                   filename:join(
-                     shrugs_config:user_dir(),
-                     "authorized_keys")) of
-
-                {ok, AuthorizedKeys} ->
-                    ?LOG_DEBUG(#{authorized_keys => AuthorizedKeys}),
-                    AuthorizedKeys;
-
-                {error, Reason} ->
-                    ?LOG_DEBUG(#{error => Reason}),
-                    undefined
-            end;
-
-        AuthorizedKeys ->
-            ?LOG_DEBUG(#{authorized_keys => AuthorizedKeys}),
-            list_to_binary(AuthorizedKeys)
-    end.
