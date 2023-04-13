@@ -2,9 +2,11 @@
 services:
   shrugs:
     image:
-      ${SHRUGS_IMAGE:-shrugs:${SHRUGS_VERSION:-latest}}
+      ${SHRUGS_IMAGE:-ghcr.io/shortishly/shrugs:${SHRUGS_VERSION:-latest}}
     ports:
       - 22022:22
+    pull_policy:
+      ${PULL_POLICY:-always}
     volumes:
       - repos:/repos
       - host_keys:/etc/ssh
