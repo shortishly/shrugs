@@ -50,6 +50,13 @@ init_per_suite(Config) ->
 
     application:set_env(shrugs, git_trace, false),
 
+    _ = application:load(erlexec),
+    application:set_env(erlexec, debug, 1),
+    application:set_env(erlexec, root, true),
+    application:set_env(erlexec, user, "root"),
+    application:set_env(erlexec, verbose, true),
+
+
     {ok, _} = application:ensure_all_started(shrugs),
 
     logger:set_handler_config(
