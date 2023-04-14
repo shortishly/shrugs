@@ -1,11 +1,15 @@
-# Secure sHell Remote User Git Server (shrugs)
+# secure shell remote user git server (shrugs)
 
 A git server that you can push, clone or pull over ssh... ¯\\\_(ツ)\_/¯
 
 You can run a docker container with:
 
 ```shell
-docker run --name shrugs -d -p 22022:22 ghcr.io/shortishly/shrugs
+docker run \
+  --name shrugs \
+  -d \
+  -p 22022:22 \
+  ghcr.io/shortishly/shrugs
 ```
 
 Shrugs uses the following directories in the container:
@@ -25,10 +29,8 @@ docker cp ~/.ssh/authorized_keys shrugs:/users
 Or copy the public key for individual users:
 
 ```shell
-docker cp ~/.ssh/id_ed25519.pub shrugs:/users/${USER}.pub
-
-docker cp bob.pub shrugs:/users/bob.pub
-docker cp alice.pub shrugs:/users/alice.pub
+docker cp bob.pub shrugs:/users
+docker cp alice.pub shrugs:/users
 ```
 
 New keys ("*.pub" or "authorized_keys") in the users directory will be
@@ -70,7 +72,7 @@ $ ssh -p 22022 localhost ls
 demo
 ```
 
-A little simpler with a host entry for shrugs in your `.ssh/config`:
+With a host entry for shrugs in your `.ssh/config`:
 
 ```shell
 host shrugs
@@ -128,10 +130,8 @@ With the above compose you can copy keys with `docker compose cp`
 rather than `docker cp`:
 
 ```shell
-docker compose cp ~/.ssh/id_ed25519.pub shrugs:/users/${USER}.pub
-
-docker compose cp bob.pub shrugs:/users/bob.pub
-docker compose cp alice.pub shrugs:/users/alice.pub
+docker compose cp bob.pub shrugs:/users
+docker compose cp alice.pub shrugs:/users
 ```
 
 ## Environment
