@@ -144,6 +144,11 @@ handle_ssh_msg(
 
         ["ls"] ->
             case file:list_dir(shrugs_config:dir(repo)) of
+                {ok, []} ->
+                    ssh_connection:reply_request(Connection, WantReply, success, Channel),
+                    ssh_connection:exit_status(Connection, Channel, 0),
+                    ssh_connection:send_eof(Connection, Channel);
+
                 {ok, Repositories} ->
                     ssh_connection:reply_request(Connection, WantReply, success, Channel),
                     _ = ssh_connection:send(Connection,

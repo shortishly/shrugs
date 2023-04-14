@@ -7,6 +7,10 @@ services:
       - 22022:22
     pull_policy:
       ${PULL_POLICY:-always}
+    environment:
+      SHRUGS_KEY_STORE_TRACE: false
+      SHRUGS_SSH_DAEMON_TRACE: false
+      SHRUGS_USERS_TRACE: false
     volumes:
       - repos:/repos
       - host_keys:/etc/ssh

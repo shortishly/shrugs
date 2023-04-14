@@ -110,9 +110,15 @@ repository storage), `/etc/ssh` (shrugs ssh host key), and `/users`
 services:
   shrugs:
     image:
-      ghcr.io/shortishly/shrugs:latest
+      ${SHRUGS_IMAGE:-ghcr.io/shortishly/shrugs:${SHRUGS_VERSION:-latest}}
     ports:
       - 22022:22
+    pull_policy:
+      ${PULL_POLICY:-always}
+    environment:
+      SHRUGS_KEY_STORE_TRACE: false
+      SHRUGS_SSH_DAEMON_TRACE: false
+      SHRUGS_USERS_TRACE: false
     volumes:
       - repos:/repos
       - host_keys:/etc/ssh
@@ -138,15 +144,26 @@ docker compose cp alice.pub shrugs:/users
 
 The following environment variables can be used for configuration:
 
-|Variable                        |Default     |Description                                        |
-|--------------------------------|------------|---------------------------------------------------|
-|SHRUGS\_SSHD\_PORT              | 22         | Incoming SSH connections on this port             |
-|SHRUGS\_AUTHENTICATION\_ENABLED | true       | "false" will disable user authentication          |
-|SHRUGS\_SYSTEM\_DIR             | /etc/ssh   | This directory to find the host key               |
-|SHRUGS\_USER\_DIR               | /users     | This directory to find authorized user keys       |
-|SHRUGS\_REPO\_DIR               | /repos     | This directory to store git repositories          |
-|SHRUGS\_BIN\_DIR                | /bin       | This directory to find the git executable         |
-|SHRUGS\_WATCH\_TIMEOUT          | 5000       | Check the repo dir every 5000ms for new user keys |
+| Variable                        | Default    | Description                                       |
+|---------------------------------|------------|---------------------------------------------------|
+| SHRUGS\_SSHD\_PORT              | 22         | Incoming SSH connections on this port             |
+| SHRUGS\_AUTHENTICATION\_ENABLED | true       | "false" will disable user authentication          |
+| SHRUGS\_SYSTEM\_DIR             | /etc/ssh   | This directory to find the host key               |
+| SHRUGS\_USER\_DIR               | /users     | This directory to find authorized user keys       |
+| SHRUGS\_REPO\_DIR               | /repos     | This directory to store git repositories          |
+| SHRUGS\_BIN\_DIR                | /bin       | This directory to find the git executable         |
+| SHRUGS\_WATCH\_TIMEOUT          | 5000       | Check the repo dir every 5000ms for new user keys |
+
+
+## Debug
+
+The following environment variables can be used to enable debug logging:
+
+| Variable                        | Default    | Description                                |
+|---------------------------------|------------|--------------------------------------------|
+| SHRUGS\_KEY\_STORE\_TRACE       | false      | Enables logging options from the key store |
+| SHRUGS\_SSH_DAEMON\_TRACE       | false      | Enables logging of the SSH daemon          |
+| SHRUGS\_USERS\_TRACE            | false      | Enables logging of the users subsystem     |
 
 ## Build
 
