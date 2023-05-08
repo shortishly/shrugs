@@ -20,7 +20,7 @@ PROJECT_VERSION = 0.1.0
 
 DEPS = \
 	envy \
-	exec
+	grimsby
 
 RELX_TAR = 0
 
@@ -31,6 +31,7 @@ LOCAL_DEPS = \
 
 
 dep_envy = git https://github.com/shortishly/envy.git
+dep_grimsby = git https://github.com/shortishly/grimsby.git
 
 dep_envy_commit = 0.7.2
 
@@ -66,5 +67,3 @@ PLT_APPS = \
 BUILD_DEPS += relx
 
 include $(if $(ERLANG_MK_FILENAME),$(ERLANG_MK_FILENAME),erlang.mk)
-
-app:: rebar.config

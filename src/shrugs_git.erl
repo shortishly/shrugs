@@ -89,7 +89,7 @@ handle_event(info, {'EXIT', Port, normal}, _, _) when is_port(Port) ->
 handle_event(info, {Port, eof}, _, _) when is_port(Port) ->
     keep_state_and_data;
 
-handle_event(info, {Port, {exit_status, Status}}, _, #{ports := Ports} = Data) 
+handle_event(info, {Port, {exit_status, Status}}, _, #{ports := Ports} = Data)
   when is_port(Port),
        is_map_key(Port, Ports) ->
 
@@ -112,4 +112,3 @@ handle_event(info, {Port, {data, Partial}}, _, #{ports := Ports} = Data)
 
 status(0) -> ok;
 status(_) -> error.
-    

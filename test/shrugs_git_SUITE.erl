@@ -48,13 +48,14 @@ init_per_suite(Config) ->
     application:set_env(shrugs, user_dir, UserDir),
     application:set_env(shrugs, bin_dir, BinDir),
 
-    application:set_env(shrugs, git_trace, false),
+    application:set_env(shrugs, git_trace, true),
+    application:set_env(shrugs, key_store_trace, true),
+    application:set_env(shrugs, ssh_daemon_trace, true),
+    application:set_env(shrugs, users_trace, true),
 
-    _ = application:load(erlexec),
-    application:set_env(erlexec, debug, 1),
-    application:set_env(erlexec, root, true),
-    application:set_env(erlexec, user, "root"),
-    application:set_env(erlexec, verbose, true),
+    _ = application:load(grimsby),
+    application:set_env(grimsby, port_trace, true),
+    application:set_env(grimsby, command_trace, true),
 
 
     {ok, _} = application:ensure_all_started(shrugs),
@@ -178,7 +179,7 @@ push_clone_test(Config) ->
                 RepoDir,
                 Env,
                 ["push", "--set-upstream", URI, "main"]),
-    
+
     Clone = alpha(5),
 
     {ok, _} = shrugs_git:command(

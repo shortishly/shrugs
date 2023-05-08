@@ -13,13 +13,13 @@
 /*.d
 /beam-docker-release-action
 /makefile.bak
+/repos
 _image
 _rel
 cover
 db
 deps
-ebin/*.beam
-ebin/test
+ebin
 elvis
 elvis.config
 erl_crash.dump

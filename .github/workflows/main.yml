@@ -7,19 +7,22 @@ on:
     tags:
       - '[0-9]+.[0-9]+.[0-9]+'
 env:
-  OTP_VERSION: '25.3'
   REGISTRY: 'ghcr.io'
 permissions:
   packages: write
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        erlang: ["25.3.2"]
+        rust: ["1.68.2"]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: ${{env.OTP_VERSION}}
+          otp-version: ${{matrix.erlang}}
       - name: Build
         run: make distclean all
       - name: Beam Docker Release
@@ -28,7 +31,7 @@ jobs:
           registry: ${{env.REGISTRY}}
           username: ${{github.actor}}
           password: ${{secrets.GITHUB_TOKEN}}
-          build-image: erlang:${{env.OTP_VERSION}}
+          build-image: ghcr.io/shortishly/erlang-rust:${{matrix.erlang}}-${{matrix.rust}}
           build-command: make distclean all
           image-description: >-
             shrugs is a git server that you can push, clone or pull
