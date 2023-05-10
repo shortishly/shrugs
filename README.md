@@ -44,9 +44,10 @@ cd demo
 git init .
 echo "world" > hello.txt
 git add hello.txt     
-git commit --message=''
-
-git push --set-upstream ssh://localhost:22022/demo
+git commit --message='demo'
+git branch -M main
+git remote add origin ssh://localhost:22022/demo
+git push --set-upstream origin main
 ```
 
 Clone an existing repository already in shrugs with:
@@ -61,8 +62,8 @@ Push to an existing repository:
 cd abc
 echo "God’s Own Country" > yorkshire.txt
 git add yorkshire.txt
-git commit --message=''
-git push
+git commit --message='home'
+git push origin main
 ```
 
 To list (ls) the repositories stored in shrugs:
