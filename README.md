@@ -153,6 +153,7 @@ The following environment variables can be used for configuration:
 | SHRUGS\_REPO\_DIR               | /repos     | This directory to store git repositories          |
 | SHRUGS\_BIN\_DIR                | /bin       | This directory to find the git executable         |
 | SHRUGS\_WATCH\_TIMEOUT          | 5000       | Check the repo dir every 5000ms for new user keys |
+| SHRUGS\_INITIAL\_BRANCH         | main       | Initial branch name used with git --init --bare   |
 
 
 ## Debug

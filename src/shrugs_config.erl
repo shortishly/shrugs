@@ -17,6 +17,7 @@
 
 
 -export([authorized_keys/0]).
+-export([branch/1]).
 -export([dir/1]).
 -export([enabled/1]).
 -export([generate_key/1]).
@@ -24,6 +25,13 @@
 -export([timeout/1]).
 -import(envy, [envy/1]).
 -include_lib("kernel/include/logger.hrl").
+
+
+
+branch(initial = Name) ->
+    envy(#{caller => ?MODULE,
+           names => [Name, ?FUNCTION_NAME],
+           default => "main"}).
 
 
 port(sshd = Name) ->

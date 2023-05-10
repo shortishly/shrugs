@@ -40,18 +40,17 @@ handle_msg({ssh_channel_up, _Channel, _Connection} = Msg, State) ->
     {ok, State}.
 
 handle_call(
-  {grimsby_port, {exit, Child, Status}},
+  {grimsby_port, {exit, Child, Status} = Msg},
   _,
   #{channels := Channels, envs := Envs, children := Children} = State)
   when is_integer(Status),
        is_map_key(Child, Children) ->
-    ?LOG_DEBUG(#{child => Child, status => Status}),
+    ?LOG_DEBUG(#{msg => Msg}),
     #{Child := {Connection, Channel} = CoCh} = Children,
-    ssh_connection:exit_status(
-      Connection,
-      Channel,
-      Status),
-    %% _ = ssh_connection:send_eof(Connection, Channel),
+    ok = ssh_connection:exit_status(
+           Connection,
+           Channel,
+           Status),
     ok = ssh_connection:close(Connection, Channel),
     {reply,
      ok,
@@ -59,23 +58,29 @@ handle_call(
             envs := maps:remove(CoCh, Envs),
             children := maps:remove(Child, Children)}};
 
-handle_call({grimsby_port, {eof, Child, stdout = Stream}}, _, State) ->
-    ?LOG_DEBUG(#{child => Child, stream => Stream}),
+handle_call(
+  {grimsby_port, {eof, Child, stdout} = Msg},
+  _,
+  #{children := Children} = State)
+  when is_map_key(Child, Children) ->
+    ?LOG_DEBUG(#{msg => Msg}),
+    #{Child := {Connection, Channel}} = Children,
+    ok = ssh_connection:send_eof(Connection, Channel),
     _ = grimsby_port:wait_for_exit(Child),
     {reply, ok, State};
 
-handle_call({grimsby_port, {eof, Child, Stream}}, _, State) ->
-    ?LOG_DEBUG(#{child => Child, stream => Stream}),
+handle_call({grimsby_port, {eof, _, _} = Msg}, _, State) ->
+    ?LOG_DEBUG(#{msg => Msg}),
     {reply, ok, State};
 
 handle_call(
-  {grimsby_port, {Stream, Child, Data}},
+  {grimsby_port, {Stream, Child, Data} = Msg},
   _From,
   #{children := Children} = State)
   when Stream == stdout;
        Stream == stderr,
        is_map_key(Child, Children) ->
-    ?LOG_DEBUG(#{stream => Stream, child => Child, data => Data}),
+    ?LOG_DEBUG(#{msg => Msg}),
     #{Child := {Connection, Channel}} = Children,
     case ssh_connection:send(Connection,
                              Channel,
@@ -288,6 +293,11 @@ prepare_repo_dir("git-receive-pack", Repo) ->
             case shrugs_git:command(
                    ["init",
                     "--bare",
+                    binary_to_list(
+                      iolist_to_binary(
+                        io_lib:format(
+                          "--initial-branch=~s",
+                          [shrugs_config:branch(initial)]))),
                     Repo]) of
 
                 {ok, Detail} ->

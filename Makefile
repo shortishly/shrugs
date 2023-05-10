@@ -53,6 +53,7 @@ PLT_APPS = \
 	compiler \
 	crypto \
 	envy \
+	grimsby \
 	inets \
 	mnesia \
 	public_key \
