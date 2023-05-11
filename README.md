@@ -194,7 +194,7 @@ The following environment variables can be used to enable debug logging:
 
 ## Build
 
-Erlang/OTP 25 is required.
+[Erlang/OTP 25][erlang-org-downloads] and [Rust][rustup-rs] are required.
 
 ```shell
 make
@@ -209,8 +209,10 @@ bin/build
 [apache-license]: https://www.apache.org/licenses/LICENSE-2.0
 [docker-compose-cp]: https://docs.docker.com/engine/reference/commandline/compose_cp/
 [docker-cp]: https://docs.docker.com/engine/reference/commandline/cp/
+[erlang-org-downloads]: https://www.erlang.org/downloads
 [erlang-org]: https://www.erlang.org
 [raspberry-pi]: https://www.raspberrypi.com
 [rust-lang-org]: https://www.rust-lang.org
+[rustup-rs]: https://rustup.rs
 [shrugs-container]: https://github.com/shortishly/shrugs/pkgs/container/shrugs
 [shrugs]: https://github.com/shortishly/shrugs
