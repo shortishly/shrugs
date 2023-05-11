@@ -1,8 +1,16 @@
-# secure shell remote user git server (shrugs)
+# Shrugs: A Self Hosted Git SSH Server
 
-A git server that you can push, clone or pull over ssh... ¯\\\_(ツ)\_/¯
+[shrugs][shrugs] is an [Apache licensed][apache-license] self hosted
+git server available as a [docker container][shrugs-container] written
+in [Erlang][erlang-org] and [Rust][rust-lang-org].
 
-You can run a docker container with:
+Sometimes you just want to host some local changes before publishing
+to the cloud, using a simple git server than can easily run on
+something as small as a [Raspberry PI][raspberry-pi].
+
+## Quick Start
+
+You can run `shrugs` in a docker container with:
 
 ```shell
 docker run \
@@ -12,13 +20,9 @@ docker run \
   ghcr.io/shortishly/shrugs
 ```
 
-Shrugs uses the following directories in the container:
+The container supports both `amd64` and  `arm64` architectures.
 
-| Directory | Description                                              |
-|-----------|----------------------------------------------------------|
-| /users    | User public SSH keys in "*.pub" and/or "authorized_keys" |
-| /repos    | Storage of git repositories                              |
-| /etc/ssh  | SSH Host keys for Shrugs service                         |
+## Authentication
 
 To copy your `authorized_keys` into the container for authentication:
 
@@ -36,6 +40,8 @@ docker cp alice.pub shrugs:/users
 New keys ("*.pub" or "authorized_keys") in the users directory will be
 picked up (by default) every 5 seconds.
 
+## Push
+
 Push any repository (including a new repository) into shrugs with:
 
 ```shell
@@ -50,13 +56,15 @@ git remote add origin ssh://localhost:22022/demo
 git push --set-upstream origin main
 ```
 
+## Clone
+
 Clone an existing repository already in shrugs with:
 
 ```shell
 git clone ssh://localhost:22022/demo abc
 ```
 
-Push to an existing repository:
+Add some more content and push to the existing repository:
 
 ```shell
 cd abc
@@ -66,6 +74,8 @@ git commit --message='home'
 git push origin main
 ```
 
+## ls
+
 To list (ls) the repositories stored in shrugs:
 
 ```shell
@@ -73,7 +83,9 @@ $ ssh -p 22022 localhost ls
 demo
 ```
 
-With a host entry for shrugs in your `.ssh/config`:
+## ~/.ssh/config
+
+With the addition of a host entry for shrugs in your `.ssh/config`:
 
 ```shell
 host shrugs
@@ -83,6 +95,8 @@ host shrugs
      loglevel QUIET
      port 22022
 ```
+
+Results in a bit less typing:
 
 ```shell
 $ ssh shrugs ls
@@ -101,6 +115,8 @@ $ git remote -v
 origin ssh://shrugs/demo (fetch)
 origin ssh://shrugs/demo (push)
 ```
+
+## compose.yaml
 
 An example `compose.yaml` with volume mounts for `/repos` (git
 repository storage), `/etc/ssh` (shrugs ssh host key), and `/users`
@@ -133,39 +149,48 @@ volumes:
     driver: local
 ```
 
-With the above compose you can copy keys with `docker compose cp`
-rather than `docker cp`:
+With the above you can copy keys with [docker compose
+cp][docker-compose-cp] rather than [docker cp][docker-cp]:
 
 ```shell
 docker compose cp bob.pub shrugs:/users
 docker compose cp alice.pub shrugs:/users
 ```
 
+## Directories
+
+Shrugs uses the following directories in the container:
+
+| Directory | Description                                              |
+|-----------|----------------------------------------------------------|
+| /users    | User public SSH keys in "*.pub" and/or "authorized_keys" |
+| /repos    | Storage of git repositories                              |
+| /etc/ssh  | SSH Host keys for Shrugs service                         |
+
 ## Environment
 
 The following environment variables can be used for configuration:
 
-| Variable                        | Default    | Description                                       |
-|---------------------------------|------------|---------------------------------------------------|
-| SHRUGS\_SSHD\_PORT              | 22         | Incoming SSH connections on this port             |
-| SHRUGS\_AUTHENTICATION\_ENABLED | true       | "false" will disable user authentication          |
-| SHRUGS\_SYSTEM\_DIR             | /etc/ssh   | This directory to find the host key               |
-| SHRUGS\_USER\_DIR               | /users     | This directory to find authorized user keys       |
-| SHRUGS\_REPO\_DIR               | /repos     | This directory to store git repositories          |
-| SHRUGS\_BIN\_DIR                | /bin       | This directory to find the git executable         |
-| SHRUGS\_WATCH\_TIMEOUT          | 5000       | Check the repo dir every 5000ms for new user keys |
-| SHRUGS\_INITIAL\_BRANCH         | main       | Initial branch name used with git --init --bare   |
-
+|Variable|Default|Description|
+|-|-|-|
+|SHRUGS\_SSHD\_PORT|22|Incoming SSH connections on this port|
+|SHRUGS\_AUTHENTICATION\_ENABLED|true|"false" will disable user authentication|
+|SHRUGS\_SYSTEM\_DIR|/etc/ssh|This directory to find the host key|
+|SHRUGS\_USER\_DIR|/users|This directory to find authorized user keys|
+|SHRUGS\_REPO\_DIR|/repos|This directory to store git repositories|
+|SHRUGS\_BIN\_DIR|/bin|This directory to find the git executable|
+|SHRUGS\_WATCH\_TIMEOUT|5000|Check the repo dir every 5000ms for new user keys|
+|SHRUGS\_INITIAL\_BRANCH|main|Initial branch name used with git --init --bare|
 
 ## Debug
 
 The following environment variables can be used to enable debug logging:
 
-| Variable                        | Default    | Description                                |
-|---------------------------------|------------|--------------------------------------------|
-| SHRUGS\_KEY\_STORE\_TRACE       | false      | Enables logging options from the key store |
-| SHRUGS\_SSH_DAEMON\_TRACE       | false      | Enables logging of the SSH daemon          |
-| SHRUGS\_USERS\_TRACE            | false      | Enables logging of the users subsystem     |
+|Variable|Default|Description|
+|-|-|-|
+|SHRUGS\_KEY\_STORE\_TRACE|false|Enables logging options from the key store|
+|SHRUGS\_SSH_DAEMON\_TRACE|false|Enables logging of the SSH daemon|
+|SHRUGS\_USERS\_TRACE|false|Enables logging of the users subsystem|
 
 ## Build
 
@@ -180,3 +205,12 @@ A local docker container can be built with:
 ```shell
 bin/build
 ```
+
+[apache-license]: https://www.apache.org/licenses/LICENSE-2.0
+[docker-compose-cp]: https://docs.docker.com/engine/reference/commandline/compose_cp/
+[docker-cp]: https://docs.docker.com/engine/reference/commandline/cp/
+[erlang-org]: https://www.erlang.org
+[raspberry-pi]: https://www.raspberrypi.com
+[rust-lang-org]: https://www.rust-lang.org
+[shrugs-container]: https://github.com/shortishly/shrugs/pkgs/container/shrugs
+[shrugs]: https://github.com/shortishly/shrugs
