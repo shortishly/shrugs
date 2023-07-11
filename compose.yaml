@@ -15,6 +15,7 @@ services:
       - repos:/repos
       - host_keys:/etc/ssh
       - user_keys:/users
+    restart: unless-stopped
 volumes:
   repos:
     driver: local
