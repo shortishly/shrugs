@@ -16,7 +16,7 @@
 
 PROJECT = shrugs
 PROJECT_DESCRIPTION = Secure sHell Remote User Git Server
-PROJECT_VERSION = 0.1.0
+PROJECT_VERSION = ${shell git describe --tags}
 
 DEPS = \
 	envy \
@@ -34,7 +34,7 @@ dep_envy = git https://github.com/shortishly/envy.git
 dep_grimsby = git https://github.com/shortishly/grimsby.git
 
 dep_envy_commit = 0.7.2
-dep_grimsby_commit = 0.1.0
+dep_grimsby_commit = 0.2.0
 
 
 SHELL_OPTS = \

@@ -17,6 +17,7 @@
 
 
 -behaviour(gen_statem).
+-export([auth_key_comments/0]).
 -export([callback_mode/0]).
 -export([handle_event/4]).
 -export([host_key/2]).
@@ -27,6 +28,7 @@
 -import(shrugs_statem, [nei/1]).
 -include_lib("kernel/include/logger.hrl").
 -include_lib("public_key/include/public_key.hrl").
+-include_lib("stdlib/include/ms_transform.hrl").
 
 
 start_link() ->
@@ -38,7 +40,7 @@ start_link() ->
 
 
 init([]) ->
-    {ok, ready, #{key_store => ets:new(?MODULE, [private])}, nei(host_keys)}.
+    {ok, ready, #{key_store => ets:new(?MODULE, [public])}, nei(host_keys)}.
 
 
 callback_mode() ->
@@ -47,6 +49,18 @@ callback_mode() ->
 handle_event(internal, host_keys, _, #{key_store := KeyStore}) ->
     true = ets:insert_new(KeyStore, host_keys()),
     keep_state_and_data;
+
+handle_event({call, From}, auth_key_comments, _, #{key_store := KeyStore}) ->
+    {keep_state_and_data,
+     {reply,
+      From,
+      ets:select(
+        KeyStore,
+        ets:fun2ms(
+          fun
+              ({{auth_key, _}, [{comment, Comment}]}) ->
+                  Comment
+          end))}};
 
 handle_event({call, From}, {add_auth_key, AuthKey, Comment}, _, #{key_store := KeyStore}) ->
     ets:insert(KeyStore, {{auth_key, AuthKey}, Comment}),
@@ -121,6 +135,10 @@ host_key(Algorithm, _DaemonOptions) ->
 
 is_auth_key(PublicUserKey, User, _DaemonOptions) ->
     gen_statem:call(?MODULE, {?FUNCTION_NAME, PublicUserKey, User}).
+
+
+auth_key_comments() ->
+    gen_statem:call(?MODULE, ?FUNCTION_NAME).
 
 
 pwd(User, Password) ->

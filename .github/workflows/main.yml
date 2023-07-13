@@ -15,18 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        erlang: ["25.3.2"]
-        rust: ["1.68.2"]
+        erlang: ["26.0.2"]
+        rust: ["1.70.0"]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.erlang}}
-      - name: Build
-        run: make distclean all
-      - name: Beam Docker Release
-        uses: shortishly/beam-docker-release-action@main
+      - run: make distclean all
+      - uses: shortishly/beam-docker-release-action@main
         with:
           registry: ${{env.REGISTRY}}
           username: ${{github.actor}}

@@ -206,6 +206,47 @@ A local docker container can be built with:
 bin/build
 ```
 
+## Diagnostics
+
+Return a list of Erlang/OTP applications with versions running within
+the container:
+
+```shell
+ssh shrugs which_applications
+
+[{sync,"Sync - Automatic Code Reloader","0.4.1"},
+ {syntax_tools,"Syntax tools","3.1"},
+ {compiler,"ERTS  CXC 138 10","8.3.2"},
+ {shrugs,"Secure sHell Remote User Git Server","0.2.0-1-gcbbfc0d"},
+ {grimsby,"Erlang/Rust Port Manager","0.2.0"},
+ {envy,"wrapper prefixing os_env with application name","rolling"},
+ {any,[],"rolling"},
+ {ssh,"SSH-2 for Erlang/OTP","5.0.1"},
+ {public_key,"Public key infrastructure","1.14"},
+ {asn1,"The Erlang ASN1 compiler version 5.1","5.1"},
+ {sasl,"SASL  CXC 138 11","4.2.1"},
+ {crypto,"CRYPTO","5.2"},
+ {stdlib,"ERTS  CXC 138 10","5.0.2"},
+ {kernel,"ERTS  CXC 138 10","9.0.2"}].
+```
+
+Return a list of comment lines from the public keys loaded into
+shrugs:
+
+```shell
+ssh shrugs auth_key_comments
+
+["peter.james.morgan@gmail.com"].
+```
+
+Return the running Erlang/OTP version:
+
+```shell
+ssh shrugs system_version
+
+Erlang/OTP 26 [erts-14.0.2] [source] [64-bit] [smp:4:4] [ds:4:4:10]
+```
+
 [apache-license]: https://www.apache.org/licenses/LICENSE-2.0
 [docker-compose-cp]: https://docs.docker.com/engine/reference/commandline/compose_cp/
 [docker-cp]: https://docs.docker.com/engine/reference/commandline/cp/

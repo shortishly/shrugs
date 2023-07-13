@@ -163,6 +163,39 @@ handle_ssh_msg(
              State#{children := Children#{Child => CoCh},
                     channels := Channels#{CoCh => Child}}};
 
+        ["which_applications"] ->
+            ssh_connection:reply_request(Connection, WantReply, success, Channel),
+            _ = ssh_connection:send(
+                  Connection,
+                  Channel,
+                  0,
+                  io_lib:fwrite("~p.~n", [application:which_applications()])),
+            ssh_connection:exit_status(Connection, Channel, 0),
+            _ = ssh_connection:send_eof(Connection, Channel),
+            {stop, Channel, State};
+
+        ["auth_key_comments"] ->
+            ssh_connection:reply_request(Connection, WantReply, success, Channel),
+            _ = ssh_connection:send(
+                  Connection,
+                  Channel,
+                  0,
+                  io_lib:fwrite("~p.~n", [shrugs_key_store:auth_key_comments()])),
+            ssh_connection:exit_status(Connection, Channel, 0),
+            _ = ssh_connection:send_eof(Connection, Channel),
+            {stop, Channel, State};
+
+        ["system_version"] ->
+            ssh_connection:reply_request(Connection, WantReply, success, Channel),
+            _ = ssh_connection:send(
+                  Connection,
+                  Channel,
+                  0,
+                  [erlang:system_info(system_version)]),
+            ssh_connection:exit_status(Connection, Channel, 0),
+            _ = ssh_connection:send_eof(Connection, Channel),
+            {stop, Channel, State};
+
         ["ls"] ->
             case file:list_dir(shrugs_config:dir(repo)) of
                 {ok, []} ->
