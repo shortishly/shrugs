@@ -52,7 +52,7 @@ jobs:
           SHRUGS_VERSION: ${{needs.package.outputs.tags}}
       - run: |
           sudo apt-get update
-          sudo apt-get install -y bats
+          sudo apt-get install -y bats openssh-client
       - run: |
           sleep 60
       - run: |
