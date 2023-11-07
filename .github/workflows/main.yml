@@ -11,12 +11,14 @@ env:
 permissions:
   packages: write
 jobs:
-  build:
+  package:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        erlang: ["26.0.2"]
-        rust: ["1.70.0"]
+        erlang:
+          - "26.0.2"
+        rust:
+          - "1.70.0"
     steps:
       - uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
@@ -35,3 +37,23 @@ jobs:
             shrugs is a git server that you can push, clone or pull
             over ssh... ¯\_(ツ)_/¯
           image-licenses: Apache-2.0
+  smoke-test:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: >-
+          docker compose
+          up
+          --detach
+          --remove-orphans
+        env:
+          SHRUGS_IMAGE: ${{needs.package.outputs.image}}
+          SHRUGS_VERSION: ${{needs.package.outputs.tags}}
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+      - run: |
+          sleep 60
+      - run: |
+          bats test/bats
