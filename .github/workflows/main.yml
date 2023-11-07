@@ -8,17 +8,20 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
 env:
   REGISTRY: 'ghcr.io'
-permissions:
-  packages: write
 jobs:
   package:
-    runs-on: ubuntu-latest
+    permissions:
+      packages: write
     strategy:
       matrix:
         erlang:
           - "26.0.2"
         rust:
           - "1.70.0"
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{steps.bdra.outputs.image}}
+      tags: ${{steps.bdra.outputs.tags}}
     steps:
       - uses: actions/checkout@v3
       - uses: erlef/setup-beam@v1
@@ -26,6 +29,7 @@ jobs:
           otp-version: ${{matrix.erlang}}
       - run: make distclean all
       - uses: shortishly/beam-docker-release-action@main
+        id: bdra
         with:
           registry: ${{env.REGISTRY}}
           username: ${{github.actor}}
@@ -56,4 +60,7 @@ jobs:
       - run: |
           sleep 60
       - run: |
+          which ssh-keygen
+          which ssh
+          which docker
           bats test/bats
