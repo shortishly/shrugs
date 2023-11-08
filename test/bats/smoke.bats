@@ -30,3 +30,16 @@ setup() {
     run ssh -o UserKnownHostsFile=/dev/null -o IdentityFile="$KEY" -o StrictHostKeyChecking=no -o LogLevel=QUIET -p 22022 localhost auth_key_comments
     [ "$output" = "[\"bob@example.com\"]." ]
 }
+
+@test "init_commit_clone" {
+    INIT_DIR=$(mktemp -d)
+    git -C "$INIT_DIR" init
+    echo "hello world" > "$INIT_DIR/greeting.txt"
+    git -C "$INIT_DIR" add greeting.txt
+    git -C "$INIT_DIR" commit -m "initial"
+    git -C "$INIT_DIR" remote add origin "ssh://localhost:22022/$(basename "$INIT_DIR")"
+    git -C "$INIT_DIR" push --set-upstream origin main
+
+    CLONE_DIR=$(mktemp -d)
+    git -C "$CLONE_DIR" clone "ssh://localhost:22022/$(basename "$INIT_DIR")"
+}
