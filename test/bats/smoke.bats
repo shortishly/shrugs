@@ -23,7 +23,7 @@ setup() {
         sleep 5
     fi
 
-    export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o IdentityFile=$KEY -o StrictHostKeyChecking=no -o LogLevel=QUIET -p 22022"
+    export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o IdentityFile=$KEY -o StrictHostKeyChecking=no"
 }
 
 @test "auth_key_comments" {
