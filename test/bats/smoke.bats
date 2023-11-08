@@ -32,6 +32,10 @@ setup() {
 }
 
 @test "init_commit_clone" {
+    git config --global init.defaultBranch main
+    git config --global user.email "bob@example.com"
+    git config --global user.name "Bob Example"
+
     INIT_DIR=$(mktemp -d)
     git -C "$INIT_DIR" init
     echo "hello world" > "$INIT_DIR/greeting.txt"
@@ -40,6 +44,12 @@ setup() {
     git -C "$INIT_DIR" remote add origin "ssh://localhost:22022/$(basename "$INIT_DIR")"
     git -C "$INIT_DIR" push --set-upstream origin main
 
-    CLONE_DIR=$(mktemp -d)
-    git -C "$CLONE_DIR" clone "ssh://localhost:22022/$(basename "$INIT_DIR")"
+    ROOT_DIR=$(mktemp -d)
+    git -C "$ROOT_DIR" clone "ssh://localhost:22022/$(basename "$INIT_DIR")"
+
+    CLONE_DIR="$ROOT_DIR/$(basename "$INIT_DIR")"
+    echo "God’s Own Country" > "$CLONE_DIR/yorkshire.txt"
+    git -C "$CLONE_DIR" add yorkshire.txt
+    git -C "$CLONE_DIR" commit --message='home'
+    git -C "$CLONE_DIR" push origin main
 }
