@@ -7,12 +7,6 @@ services:
       - 22022:22
     pull_policy:
       ${PULL_POLICY:-always}
-    environment:
-      GRIMSBY_PORT_TRACE: true
-      GRIMSBY_COMMAND_TRACE: true
-      SHRUGS_KEY_STORE_TRACE: true
-      SHRUGS_SSH_DAEMON_TRACE: true
-      SHRUGS_USERS_TRACE: true
     volumes:
       - repos:/repos
       - host_keys:/etc/ssh

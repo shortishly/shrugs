@@ -52,20 +52,16 @@ jobs:
           --detach
           --remove-orphans
         env:
+          GRIMSBY_COMMAND_TRACE: false
+          GRIMSBY_PORT_TRACE: false
           SHRUGS_IMAGE: ${{needs.package.outputs.image}}
+          SHRUGS_KEY_STORE_TRACE: false
+          SHRUGS_SSH_DAEMON_TRACE: false
+          SHRUGS_USERS_TRACE: false
           SHRUGS_VERSION: ${{needs.package.outputs.tags}}
+          SHRUGS_WATCH_TIMEOUT: 1000
       - run: |
           sudo apt-get update
-          sudo apt-get install -y bats openssh-client
+          sudo apt-get install -y bats
       - run: |
-          sleep 60
-      - run: |
-          which ssh-keygen
-          which ssh
-          which docker
-          ssh-keygen -t ed25519 -N '' -f "$KEY" -C "bob@example.com"
-          docker compose cp "$KEY.pub" shrugs:/users
-          sleep 60
-          ssh -o UserKnownHostsFile=/dev/null -o IdentityFile="$KEY" -o StrictHostKeyChecking=no -p 22022 localhost auth_key_comments
-        env:
-          KEY: bob
+          bats test/bats

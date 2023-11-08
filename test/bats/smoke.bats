@@ -20,6 +20,7 @@ setup() {
     if ! [ -f "$KEY" ]; then
         ssh-keygen -t ed25519 -N '' -f "$KEY" -C "bob@example.com" >/dev/null 2>&1
         docker compose cp "$KEY.pub" shrugs:/users >/dev/null 2>&1
+        sleep 5
     fi
 
     export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o IdentityFile=$KEY -o StrictHostKeyChecking=no -o LogLevel=QUIET -p 22022"
