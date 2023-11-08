@@ -15,7 +15,8 @@
 # limitations under the License.
 
 setup() {
-    export KEY="bob"
+    KEY_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" >/dev/null 2>&1 && pwd )"
+    export KEY="${KEY_DIR}/bob"
 
     if ! [ -f "$KEY" ]; then
         ssh-keygen -t ed25519 -N '' -f "$KEY" -C "bob@example.com" >/dev/null 2>&1
