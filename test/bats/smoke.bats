@@ -33,9 +33,7 @@ setup() {
 }
 
 @test "init_commit_clone" {
-    git config --global init.defaultBranch main
-    git config --global user.email "bob@example.com"
-    git config --global user.name "Bob Example"
+    git config init.defaultBranch main
 
     INIT_DIR=$(mktemp -d)
     git -C "$INIT_DIR" init
