@@ -1,7 +1,13 @@
 {
     "name": "shrugs",
 
-    "dockerFile": "Dockerfile",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "BUILD_IMAGE": "erlang:26.1",
+            "RUST_VERSION": "1.74.0"
+        }
+    },
 
     "hostRequirements": {
         "cpus": 2,
