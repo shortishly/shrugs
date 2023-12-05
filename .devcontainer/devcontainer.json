@@ -1,0 +1,34 @@
+{
+    "name": "shrugs",
+
+    "dockerFile": "Dockerfile",
+
+    "hostRequirements": {
+        "cpus": 2,
+        "memory": "4gb",
+        "storage": "32gb"
+    },
+
+    "customizations": {
+        "codespaces": {
+            "openFiles": [
+                "README.md",
+                "Makefile",
+                "src/shrugs_app.erl",
+                "src/shrugs_sup.erl"
+            ]
+        }
+    },
+
+    "forwardPorts": [22022],
+
+    "portsAttributes": {"22022": {"label": "git"}},
+
+    "features": {
+        "ghcr.io/devcontainers/features/sshd:1": {},
+
+        "ghcr.io/devcontainers/features/common-utils:2": {},
+
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    }
+}
