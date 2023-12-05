@@ -15,9 +15,9 @@ jobs:
     strategy:
       matrix:
         erlang:
-          - "26.0.2"
+          - "26.1.2"
         rust:
-          - "1.70.0"
+          - "1.74.0"
     runs-on: ubuntu-latest
     outputs:
       image: ${{steps.bdra.outputs.image}}
