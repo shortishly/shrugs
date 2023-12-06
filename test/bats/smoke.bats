@@ -16,7 +16,7 @@
 
 setup() {
     KEY_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" >/dev/null 2>&1 && pwd )"
-    export KEY="${KEY_DIR}/bob"
+    KEY="${KEY_DIR}/bob"
 
     if ! [ -f "$KEY" ]; then
         ssh-keygen -t ed25519 -N '' -f "$KEY" -C "bob@example.com" >/dev/null 2>&1
@@ -24,22 +24,22 @@ setup() {
         sleep 5
     fi
 
-    export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o IdentityFile=$KEY -o StrictHostKeyChecking=no"
+    export GIT_CONFIG_GLOBAL="/dev/null"
+    export GIT_CONFIG_SYSTEM="/dev/null"
+    export GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=true -i $KEY -o StrictHostKeyChecking=no -o LogLevel=QUIET"
 }
 
 @test "auth_key_comments" {
-    run ssh -o UserKnownHostsFile=/dev/null -o IdentityFile="$KEY" -o StrictHostKeyChecking=no -o LogLevel=QUIET -p 22022 localhost auth_key_comments
+    run ${GIT_SSH_COMMAND} -p 22022 localhost auth_key_comments
     [ "$output" = "[\"bob@example.com\"]." ]
 }
 
 @test "init_commit_clone" {
-    git config init.defaultBranch main
-
     INIT_DIR=$(mktemp -d)
-    git -C "$INIT_DIR" init
+    git -C "$INIT_DIR" -c init.defaultBranch=main init
     echo "hello world" > "$INIT_DIR/greeting.txt"
     git -C "$INIT_DIR" add greeting.txt
-    git -C "$INIT_DIR" commit -m "initial"
+    git -C "$INIT_DIR" -c "user.email=bob@example.com" -c "user.name=Bob Example" commit -m "initial"
     git -C "$INIT_DIR" remote add origin "ssh://localhost:22022/$(basename "$INIT_DIR")"
     git -C "$INIT_DIR" push --set-upstream origin main
 
@@ -49,6 +49,6 @@ setup() {
     CLONE_DIR="$ROOT_DIR/$(basename "$INIT_DIR")"
     echo "God’s Own Country" > "$CLONE_DIR/yorkshire.txt"
     git -C "$CLONE_DIR" add yorkshire.txt
-    git -C "$CLONE_DIR" commit --message='home'
+    git -C "$CLONE_DIR" -c "user.email=bob@example.com" -c "user.name=Bob Example" commit --message='home'
     git -C "$CLONE_DIR" push origin main
 }
