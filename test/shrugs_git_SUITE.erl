@@ -75,7 +75,7 @@ init_per_suite(Config) ->
     logger:set_module_level([], debug),
 
     #{port := Port} = shrugs_ssh_daemon:info(),
-    
+
     [{port, Port},
      {system_dir, SystemDir},
      {user_dir, UserDir},
@@ -93,7 +93,7 @@ unauth_push_test(Config) ->
     KeyName = alpha(5),
     PrivateKey = filename:join(PrivDir, KeyName),
     ct:log(os:cmd("ssh-keygen -t ed25519 -N '' -f " ++ PrivateKey)),
-    
+
     Repo = alpha(5),
     Content0 = list_to_binary(alpha(20)),
     RepoDir = filename:join(PrivDir, Repo),
@@ -110,11 +110,13 @@ unauth_push_test(Config) ->
                                       " -o UserKnownHostsFile=/dev/null",
                                       " -o IdentityFile='", PrivateKey, "'",
                                       " -o StrictHostKeyChecking=no",
-                                      " -o LogLevel=QUIET"]))},
+                                      " -o LogLevel=QUIET"])),
+            "GIT_CONFIG_GLOBAL" => "/dev/null",
+            "GIT_CONFIG_SYSTEM" => "/dev/null"},
 
-    {ok, _} = shrugs_git:command(RepoDir, Env, ["init", "."]),
+    {ok, _} = shrugs_git:command(RepoDir, Env, ["-c", "init.defaultBranch=main", "init", "."]),
     {ok, _} = shrugs_git:command(RepoDir, Env, ["add", "content.txt"]),
-    {ok, _} = shrugs_git:command(RepoDir, Env, ["commit", "--message=''"]),
+    {ok, _} = shrugs_git:command(RepoDir, Env, ["-c", "user.email=bob@example.com", "-c", "user.name=Bob Example", "commit", "--message=''"]),
 
 
     URI = uri_string:recompose(
@@ -127,10 +129,9 @@ unauth_push_test(Config) ->
                 RepoDir,
                 Env,
                 ["push", "--set-upstream", URI, "main"]).
-    
 
 
-push_clone_test(Config) -> 
+push_clone_test(Config) ->
     PrivDir = ?config(priv_dir, Config),
 
     KeyName = alpha(5),
@@ -141,11 +142,11 @@ push_clone_test(Config) ->
                         filename:join(
                           ?config(user_dir, Config),
                           KeyName ++ ".pub")),
-    
+
     %% wait for public key to be picked up from watched user directory...
     %%
     timer:sleep(trunc(shrugs_config:timeout(watch) * 1.5)),
-    
+
     Repo = alpha(5),
     Content0 = list_to_binary(alpha(20)),
     RepoDir = filename:join(PrivDir, Repo),
@@ -162,11 +163,13 @@ push_clone_test(Config) ->
                                       " -o UserKnownHostsFile=/dev/null",
                                       " -o IdentityFile='", PrivateKey, "'",
                                       " -o StrictHostKeyChecking=no",
-                                      " -o LogLevel=QUIET"]))},
+                                      " -o LogLevel=QUIET"])),
+            "GIT_CONFIG_GLOBAL" => "/dev/null",
+            "GIT_CONFIG_SYSTEM" => "/dev/null"},
 
-    {ok, _} = shrugs_git:command(RepoDir, Env, ["init", "."]),
+    {ok, _} = shrugs_git:command(RepoDir, Env, ["-c", "init.defaultBranch=main", "init", "."]),
     {ok, _} = shrugs_git:command(RepoDir, Env, ["add", "content.txt"]),
-    {ok, _} = shrugs_git:command(RepoDir, Env, ["commit", "--message=''"]),
+    {ok, _} = shrugs_git:command(RepoDir, Env, ["-c", "user.email=bob@example.com", "-c", "user.name=Bob Example", "commit", "--message=''"]),
 
 
     URI = uri_string:recompose(
@@ -214,7 +217,7 @@ push_clone_test(Config) ->
                   [PrivDir,
                    Clone]),
                 Env,
-                ["commit", "--message=''"]),
+                ["-c", "user.email=bob@example.com", "-c", "user.name=Bob Example", "commit", "--message=''"]),
 
     {ok, _} = shrugs_git:command(
                 filename:join(
@@ -250,4 +253,3 @@ pick(N, Pool, A) ->
     ?FUNCTION_NAME(N - 1,
                    Pool,
                    [lists:nth(rand:uniform(length(Pool)), Pool) | A]).
-
