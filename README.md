@@ -10,7 +10,33 @@ something as small as a [Raspberry PI][raspberry-pi].
 
 ## Quick Start
 
-You can run `shrugs` in a docker container with:
+If your public keys are on GitHub you can use (where `username` is
+your GitHub username):
+
+```shell
+docker run \
+  --name shrugs \
+  -e SSH_PUBLIC_KEY_URL="https://github.com/username.keys" \
+  -p 22022:22 \
+  ghcr.io/shortishly/shrugs
+```
+
+If your public keys are on GitLab you can use (where `username` is
+your GitLab username):
+
+```shell
+docker run \
+  --name shrugs \
+  -e SSH_PUBLIC_KEY_URL="https://gitlab.com/username.keys" \
+  -p 22022:22 \
+  ghcr.io/shortishly/shrugs
+```
+
+When `SSH_PUBLIC_KEY_URL` is supplied, shrugs will fetch and apply the
+keys found at the URL.
+
+Alternatively you can run `shrugs` and follow the instructions for
+`Authentication` below:
 
 ```shell
 docker run \

@@ -52,12 +52,32 @@ callback_mode() ->
 
 
 handle_event(internal, discover_keys, _, _) ->
-    try
-        {keep_state_and_data, nei({static, shrugs_config:authorized_keys()})}
+    case os:getenv("SSH_PUBLIC_KEY_URL") of
+        false ->
+            try
+                {keep_state_and_data,
+                 nei({static, shrugs_config:authorized_keys()})}
 
-    catch
-        error:badarg ->
-            {keep_state_and_data, nei({watch, shrugs_config:dir(user)})}
+            catch
+                error:badarg ->
+                    {keep_state_and_data,
+                     nei({watch, shrugs_config:dir(user)})}
+            end;
+
+        URL ->
+            case httpc:request(
+                   get,
+                   {URL, []},
+                   [{timeout, 1_000}],
+                   [{body_format, binary}]) of
+
+                {ok, {_, _, Keys}} ->
+                    {keep_state_and_data,
+                     nei({static, Keys})};
+
+                {error, Reason} ->
+                    {stop, Reason}
+            end
     end;
 
 handle_event(internal, {static, EncodedKeys}, _, _) ->
