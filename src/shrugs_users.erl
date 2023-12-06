@@ -80,183 +80,96 @@ handle_event(internal, {static, EncodedKeys}, _, _) ->
 handle_event(internal, stop, _, _) ->
     stop;
 
-handle_event(internal, {watch, Directory}, _, #{stats := Stats} = Data)
-  when is_map_key(Directory, Stats) ->
-    #{Directory := Existing} = Stats,
+handle_event(internal, {watch, Directory}, _, _) ->
+    case file:list_dir(Directory) of
+        {ok, Filenames} ->
+            {keep_state_and_data,
+             lists:foldl(
+               fun
+                   ("authorized_keys" = Filename, A) ->
+                       [nei({read_link_info, Directory, Filename}) | A];
+
+                   (Filename, A) ->
+                       case filename:extension(Filename) of
+                           ".pub" ->
+                               [nei({read_link_info, Directory, Filename}) | A];
+
+                           _Otherwise ->
+                               A
+                       end
+               end,
+               [{{timeout, watch}, shrugs_config:timeout(watch), Directory}],
+               Filenames)};
+
+        {error, Reason} ->
+            ?LOG_WARNING(#{directory => Directory, reason => Reason}),
+            {keep_state_and_data,
+             {{timeout, watch}, shrugs_config:timeout(watch), Directory}}
+    end;
+
+handle_event(internal,
+             {read_link_info, Directory, Filename},
+             _,
+             #{stats := Stats} = Data) when is_map_key(Filename, Stats) ->
+
+    #{{Directory, Filename} := Existing} = Stats,
 
     case file:read_link_info(Directory) of
         {ok, Existing} ->
-            {keep_state_and_data,
-             {{timeout, watch}, shrugs_config:timeout(watch), Directory}};
+            keep_state_and_data;
 
         {ok, New} ->
-            case file:list_dir(Directory) of
-                {ok, Filenames} ->
-                    {keep_state,
-                     Data#{stats := Stats#{Directory => New}},
-                     lists:foldl(
-                       fun
-                           ("authorized_keys" = Filename, A) ->
-                               [nei({stat, Directory, Filename}) | A];
-
-                           (Filename, A) ->
-                               case filename:extension(Filename) of
-                                   ".pub" ->
-                                       [nei({stat, Directory, Filename}) | A];
-
-                                   _Otherwise ->
-                                       A
-                               end
-                       end,
-                       [{{timeout, watch}, shrugs_config:timeout(watch), Directory}],
-                       Filenames)};
-
-                {error, Reason} ->
-                    ?LOG_WARNING(#{directory => Directory, reason => Reason}),
-                    {keep_state_and_data,
-                     {{timeout, watch},
-                      shrugs_config:timeout(watch),
-                      Directory}}
-            end;
+            {keep_state,
+             Data#{stats := Stats#{{Directory, Filename} => New}},
+             nei({read_file, Directory, Filename})};
 
         {error, Reason} ->
             ?LOG_WARNING(#{directory => Directory, reason => Reason}),
-            {keep_state_and_data,
-             {{timeout, watch},
-              shrugs_config:timeout(watch),
-              Directory}}
+            keep_state_and_data
     end;
 
-handle_event(internal, {watch, Directory}, _, #{stats := Stats} = Data) ->
+handle_event(internal,
+             {read_link_info, Directory, Filename},
+             _,
+             #{stats := Stats} = Data) ->
     case file:read_link_info(Directory) of
         {ok, New} ->
-            case file:list_dir(Directory) of
-                {ok, Filenames} ->
-                    {keep_state,
-                     Data#{stats := Stats#{Directory => New}},
-                     lists:foldl(
-                       fun
-                           ("authorized_keys" = Filename, A) ->
-                               [nei({stat, Directory, Filename}) | A];
-
-                           (Filename, A) ->
-                               case filename:extension(Filename) of
-                                   ".pub" ->
-                                       [nei({stat, Directory, Filename}) | A];
-
-                                   _Otherwise ->
-                                       A
-                               end
-                       end,
-                       [{{timeout, watch}, shrugs_config:timeout(watch), Directory}],
-                       Filenames)};
-
-                {error, Reason} ->
-                    ?LOG_WARNING(#{directory => Directory, reason => Reason}),
-                    {keep_state_and_data,
-                     {{timeout, watch},
-                      shrugs_config:timeout(watch),
-                      Directory}}
-            end;
+            {keep_state,
+             Data#{stats := Stats#{{Directory, Filename} => New}},
+             nei({read_file, Directory, Filename})};
 
         {error, Reason} ->
             ?LOG_WARNING(#{directory => Directory, reason => Reason}),
-            {keep_state_and_data,
-             {{timeout, watch},
-              shrugs_config:timeout(watch),
-              Directory}}
+            keep_state_and_data
     end;
 
 handle_event({timeout, watch}, Directory, _, _) ->
     {keep_state_and_data, nei({watch, Directory})};
 
 handle_event(internal,
-             {stat, Directory, Filename},
+             {read_file, Directory, Filename},
              _,
-             #{stats := Stats} = Data) when is_map_key(Filename, Stats) ->
-    #{Filename := Existing} = Stats,
+             _) ->
+    case file:read_file(filename:join(Directory, Filename)) of
 
-    case file:read_link_info(filename:join(Directory, Filename)) of
+        {ok, EncodedKeys} ->
+            case ssh_file:decode(EncodedKeys, auth_keys) of
 
-        {ok, Existing} ->
-            keep_state_and_data;
-
-        {ok, Updated} ->
-            case file:read_file(filename:join(Directory, Filename)) of
-
-                {ok, EncodedKeys} ->
-                    case ssh_file:decode(EncodedKeys, auth_keys) of
-
-                        {error, Reason} ->
-                            ?LOG_INFO(#{directory => Directory,
-                                filename => Filename,
-                                        reason => Reason}),
-                            {keep_state,
-                             Data#{stats := Stats#{Filename := Updated}}};
-
-                        Decoded ->
-                            {keep_state,
-                             Data#{stats := Stats#{Filename := Updated}},
-                             lists:map(
-                               fun
-                                   ({AuthKey, Comment}) ->
-                                       ?LOG_DEBUG(#{auth_key => AuthKey}),
-                                       nei({add_auth_key, AuthKey, Comment})
-                               end,
-                               Decoded)}
-                    end;
-                
                 {error, Reason} ->
                     ?LOG_INFO(#{directory => Directory,
                                 filename => Filename,
                                 reason => Reason}),
-                    {keep_state, Data#{stats := Stats#{Filename := Updated}}}
-            end;
+                    keep_state_and_data;
 
-        {error, Reason} ->
-            ?LOG_INFO(#{directory => Directory,
-                        filename => Filename,
-                        reason => Reason}),
-            keep_state_and_data
-    end;
-
-
-handle_event(internal,
-             {stat, Directory, Filename},
-             _,
-             #{stats := Stats} = Data) ->
-    case file:read_link_info(filename:join(Directory, Filename)) of
-
-        {ok, New} ->
-            case file:read_file(filename:join(Directory, Filename)) of
-
-                {ok, EncodedKeys} ->
-                    case ssh_file:decode(EncodedKeys, auth_keys) of
-
-                        {error, Reason} ->
-                            ?LOG_INFO(#{directory => Directory,
-                                filename => Filename,
-                                        reason => Reason}),
-                            {keep_state,
-                             Data#{stats := Stats#{Filename => New}}};
-
-                        Decoded ->
-                            {keep_state,
-                             Data#{stats := Stats#{Filename => New}},
-                             lists:map(
-                               fun
-                                   ({AuthKey, Comment}) ->
-                                       ?LOG_DEBUG(#{auth_key => AuthKey}),
-                                       nei({add_auth_key, AuthKey, Comment})
-                               end,
-                               Decoded)}
-                    end;
-                
-                {error, Reason} ->
-                    ?LOG_INFO(#{directory => Directory,
-                                filename => Filename,
-                                reason => Reason}),
-                    {keep_state, Data#{stats := Stats#{Filename := New}}}
+                Decoded ->
+                    {keep_state_and_data,
+                     lists:map(
+                       fun
+                           ({AuthKey, Comment}) ->
+                               ?LOG_DEBUG(#{auth_key => AuthKey}),
+                               nei({add_auth_key, AuthKey, Comment})
+                       end,
+                       Decoded)}
             end;
 
         {error, Reason} ->

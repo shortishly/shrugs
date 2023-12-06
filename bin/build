@@ -33,10 +33,11 @@ fi
 
 
 docker build \
+       --no-cache \
        --file "$bdra/Dockerfile" \
        --progress plain \
-       --tag shrugs:latest \
-       --build-arg BUILD_IMAGE=ghcr.io/shortishly/erlang-rust:26.0.2-1.70.0 \
+       --tag "ghcr.io/$(gh repo view --json nameWithOwner --jq .nameWithOwner)" \
+       --build-arg BUILD_IMAGE=ghcr.io/shortishly/erlang-rust:26.1.2-1.74.0 \
        --build-arg GITHUB_REPOSITORY=$(gh repo view --json nameWithOwner --jq .nameWithOwner) \
        --build-arg BUILD_COMMAND=make \
        "$repo_root"
