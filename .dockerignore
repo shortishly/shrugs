@@ -1,2 +1,5 @@
-_rel
-repos
+/_rel
+/deps
+/ebin
+/repos
+/shrugs.d
